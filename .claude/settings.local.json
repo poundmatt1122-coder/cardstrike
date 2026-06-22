@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npx prisma generate)",
+      "PowerShell(npx tsc --noEmit; Write-Output \"EXIT: $LASTEXITCODE\")",
+      "Bash(timeout 25 npx tsx src/worker/index.ts)",
+      "PowerShell(npm run *)"
+    ]
+  }
+}

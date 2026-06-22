@@ -1,0 +1,308 @@
+// CardStrike — sports-card price tracking & strike (price-drop) alerts.
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7: the connection URL lives in prisma.config.ts for the CLI, and
+  // is supplied to the PrismaClient constructor via a driver adapter at
+  // runtime (see src/lib/prisma.ts).
+}
+
+// ---------------------------------------------------------------------------
+// Users (synced from Clerk)
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  name      String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  watches       Watch[]
+  notifications Notification[]
+
+  // Phase 3 — member trading
+  tradeListings    TradeListing[]
+  sentOffers       TradeOffer[]  @relation("SentOffers")
+  receivedOffers   TradeOffer[]  @relation("ReceivedOffers")
+  wishlists        Wishlist[]
+  givenRatings     TradeRating[] @relation("GivenRatings")
+  receivedRatings  TradeRating[] @relation("ReceivedRatings")
+  feesAsBuyer      TradeFee[]    @relation("FeeFromUser")
+  feesAsSeller     TradeFee[]    @relation("FeeToUser")
+
+  dateOfBirth         DateTime?
+  username            String?   @unique
+  isMinor             Boolean   @default(false)
+  parentEmail         String?
+  parentApprovalToken String?   @unique
+  parentApproved      Boolean   @default(false)
+  phoneNumber         String?
+  phoneVerified       Boolean   @default(false)
+  reportsGiven        Report[]  @relation("ReportsGiven")
+  reportsReceived     Report[]  @relation("ReportsReceived")
+  shipments           TradeShipment[]
+
+  @@index([clerkId])
+}
+
+// ---------------------------------------------------------------------------
+// Cards & price history
+// ---------------------------------------------------------------------------
+
+enum Sport {
+  BASKETBALL
+  FOOTBALL
+  BASEBALL
+  HOCKEY
+  SOCCER
+  OTHER
+}
+
+enum CardCondition {
+  RAW
+  PSA_10
+  PSA_9
+  BGS_95
+  SGC_10
+  OTHER
+}
+
+model Card {
+  id         String        @id @default(cuid())
+  // Stable external identifier (e.g. marketplace SKU / slug).
+  externalId String        @unique
+  name       String
+  player     String
+  team       String?
+  setName    String
+  year       Int
+  sport      Sport         @default(BASKETBALL)
+  condition  CardCondition @default(RAW)
+  imageUrl   String?
+  // Latest observed market price, in cents to avoid float drift.
+  lastPrice  Int?
+  currency   String        @default("USD")
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  watches   Watch[]
+  snapshots PriceSnapshot[]
+
+  @@index([player])
+  @@index([sport, year])
+}
+
+model PriceSnapshot {
+  id         String   @id @default(cuid())
+  cardId     String
+  card       Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  // Price in cents at the time of capture.
+  price      Int
+  currency   String   @default("USD")
+  source     String?
+  capturedAt DateTime @default(now())
+
+  @@index([cardId, capturedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Watches (a user's "strike" alert) & notifications
+// ---------------------------------------------------------------------------
+
+enum WatchStatus {
+  ACTIVE
+  TRIGGERED
+  PAUSED
+}
+
+model Watch {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardId      String
+  card        Card        @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  // Strike when the price falls to or below this threshold (cents).
+  targetPrice Int
+  status      WatchStatus @default(ACTIVE)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  triggeredAt DateTime?
+
+  notifications Notification[]
+
+  // A user watches a given card at most once.
+  @@unique([userId, cardId])
+  @@index([status])
+}
+
+enum NotificationChannel {
+  EMAIL
+  PUSH
+  IN_APP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  watchId   String?
+  watch     Watch?              @relation(fields: [watchId], references: [id], onDelete: SetNull)
+  channel   NotificationChannel @default(EMAIL)
+  status    NotificationStatus  @default(PENDING)
+  subject   String
+  body      String
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  @@index([userId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3 — Member trading
+// ---------------------------------------------------------------------------
+
+model TradeListing {
+  id             String   @id @default(cuid())
+  userId         String
+  cardName       String
+  setName        String
+  game           String
+  grade          String
+  condition      String
+  imageUrl       String?
+  estimatedValue Float
+  lookingFor     String
+  notes          String?
+  status         String   @default("active")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User         @relation(fields: [userId], references: [id])
+  offersReceived TradeOffer[] @relation("ListingOffers")
+
+  @@index([userId])
+  @@index([status])
+  @@index([game])
+}
+
+model TradeOffer {
+  id           String   @id @default(cuid())
+  fromUserId   String
+  toUserId     String
+  listingId    String
+  offeredCards Json
+  message      String?
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  fromUser User         @relation("SentOffers", fields: [fromUserId], references: [id])
+  toUser   User         @relation("ReceivedOffers", fields: [toUserId], references: [id])
+  listing  TradeListing @relation("ListingOffers", fields: [listingId], references: [id])
+  rating    TradeRating?
+  fee       TradeFee?
+  shipments TradeShipment[]
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([status])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  cardName  String
+  setName   String
+  game      String
+  grade     String
+  maxPrice  Float?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([game])
+}
+
+model TradeRating {
+  id          String   @id @default(cuid())
+  raterId     String
+  ratedUserId String
+  offerId     String   @unique
+  rating      Int
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  rater     User       @relation("GivenRatings", fields: [raterId], references: [id])
+  ratedUser User       @relation("ReceivedRatings", fields: [ratedUserId], references: [id])
+  offer     TradeOffer @relation(fields: [offerId], references: [id])
+
+  @@index([ratedUserId])
+}
+
+model TradeFee {
+  id            String   @id @default(cuid())
+  offerId       String   @unique
+  fromUserId    String
+  toUserId      String
+  cardValueFrom Float
+  cardValueTo   Float
+  totalFee      Float
+  fromUserFee   Float
+  toUserFee     Float
+  createdAt     DateTime @default(now())
+
+  offer    TradeOffer @relation(fields: [offerId], references: [id])
+  fromUser User       @relation("FeeFromUser", fields: [fromUserId], references: [id])
+  toUser   User       @relation("FeeToUser", fields: [toUserId], references: [id])
+}
+
+model Report {
+  id             String   @id @default(cuid())
+  reporterId     String
+  reportedUserId String
+  listingId      String?
+  offerId        String?
+  reason         String
+  details        String?
+  status         String   @default("pending")
+  createdAt      DateTime @default(now())
+
+  reporter     User @relation("ReportsGiven",    fields: [reporterId],     references: [id])
+  reportedUser User @relation("ReportsReceived", fields: [reportedUserId], references: [id])
+
+  @@index([reportedUserId])
+  @@index([status])
+}
+
+model TradeShipment {
+  id             String    @id @default(cuid())
+  offerId        String
+  userId         String
+  trackingNumber String?
+  carrier        String?
+  shippedAt      DateTime?
+  confirmedAt    DateTime?
+  status         String    @default("pending")
+  createdAt      DateTime  @default(now())
+
+  offer TradeOffer @relation(fields: [offerId], references: [id])
+  user  User       @relation(fields: [userId],  references: [id])
+
+  @@index([offerId])
+}

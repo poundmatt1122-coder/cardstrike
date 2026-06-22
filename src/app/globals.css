@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/*
+ * CardStrike brand palette — Phoenix Suns colors.
+ *   purple #1D1160  ·  orange #E56020  ·  gold #F9AD1B
+ *
+ * Tailwind v4 reads `@theme` tokens and generates utilities for them, e.g.
+ * `bg-suns-purple`, `text-suns-gold`, `border-suns-orange`, `from-brand`, etc.
+ */
+@theme {
+  /* Raw Suns colors */
+  --color-suns-purple: #1d1160;
+  --color-suns-orange: #e56020;
+  --color-suns-gold: #f9ad1b;
+
+  /* Semantic brand aliases (point at the Suns colors) */
+  --color-brand: #1d1160;
+  --color-brand-accent: #e56020;
+  --color-brand-highlight: #f9ad1b;
+
+  /* A few tints/shades for surfaces and hovers */
+  --color-suns-purple-deep: #150b45;
+  --color-suns-purple-soft: #2a1b80;
+  --color-suns-orange-soft: #ff7a3d;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}

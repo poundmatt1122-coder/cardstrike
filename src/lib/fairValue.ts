@@ -6,7 +6,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { searchCardListings } from "@/lib/ebay";
+import { searchCardListings } from "@/lib/pricecharting";
 
 export interface FairValueResult {
   /** Median fair value in cents. */
@@ -97,7 +97,7 @@ export async function getFairValue(
           cardId,
           price: l.price,
           currency: l.currency,
-          source: "ebay-browse",
+          source: "pricecharting",
           capturedAt: new Date(),
         })),
         skipDuplicates: true,

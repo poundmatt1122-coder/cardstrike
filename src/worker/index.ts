@@ -10,7 +10,7 @@ import {
   type PriceCheckJob,
 } from "@/lib/queue";
 import { prisma } from "@/lib/prisma";
-import { searchCardListings } from "@/lib/ebay";
+import { searchCardListings } from "@/lib/pricecharting";
 import { getFairValue } from "@/lib/fairValue";
 import { sendAlertEmail } from "@/lib/email";
 
@@ -82,7 +82,7 @@ async function processPriceCheck(job: Job<PriceCheckJob>): Promise<void> {
     try {
       listings = await searchCardListings(cardName, grade, 0);
     } catch (err) {
-      console.error(`[price-check] eBay search error for ${cardName}:`, err);
+      console.error(`[price-check] PriceCharting search error for ${cardName}:`, err);
       continue;
     }
 
@@ -94,7 +94,7 @@ async function processPriceCheck(job: Job<PriceCheckJob>): Promise<void> {
           cardId: card.id,
           price: latestPrice,
           currency: listings[0].currency,
-          source: "ebay-browse",
+          source: "pricecharting",
         },
       });
       await prisma.card.update({

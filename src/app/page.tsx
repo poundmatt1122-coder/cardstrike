@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Show, SignUpButton } from "@clerk/nextjs";
+import { Show, SignUpButton } from "@clerk/nextjs"; // Show used for signed-in dashboard link
 
 export default function Home() {
   return (
@@ -39,13 +39,12 @@ export default function Home() {
         </p>
 
         <div className="flex flex-col items-center gap-4 sm:flex-row">
-          <Show when="signed-out">
-            <SignUpButton mode="modal">
-              <button className="h-12 rounded-full bg-suns-orange px-8 text-base font-semibold text-white shadow-lg shadow-suns-orange/30 transition-colors hover:bg-suns-orange-soft">
-                Start tracking free
-              </button>
-            </SignUpButton>
-          </Show>
+          {/* SignUpButton is always rendered so it's visible even while Clerk loads */}
+          <SignUpButton mode="modal">
+            <button className="h-12 rounded-full bg-suns-orange px-8 text-base font-semibold text-white shadow-lg shadow-suns-orange/30 transition-colors hover:bg-suns-orange-soft">
+              Start tracking free
+            </button>
+          </SignUpButton>
           <Show when="signed-in">
             <Link
               href="/dashboard"

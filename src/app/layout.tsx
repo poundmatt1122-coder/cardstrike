@@ -46,19 +46,23 @@ export default function RootLayout({
               </span>
             </Link>
             <nav className="flex items-center gap-3 text-sm">
-              <Show when="signed-out">
-                <SignInButton mode="modal">
-                  <button className="rounded-full px-4 py-2 font-medium text-white/90 transition-colors hover:text-white">
-                    Sign in
-                  </button>
-                </SignInButton>
-                <SignUpButton mode="modal">
-                  <button className="rounded-full bg-suns-orange px-4 py-2 font-semibold text-white transition-colors hover:bg-suns-orange-soft">
-                    Get started
-                  </button>
-                </SignUpButton>
-              </Show>
-              <Show when="signed-in">
+              {/* Always render auth buttons so they're visible while Clerk loads */}
+              <Show when="signed-in"
+                fallback={
+                  <>
+                    <SignInButton mode="modal">
+                      <button className="rounded-full px-4 py-2 font-medium text-white/90 transition-colors hover:text-white">
+                        Sign in
+                      </button>
+                    </SignInButton>
+                    <SignUpButton mode="modal">
+                      <button className="rounded-full bg-suns-orange px-4 py-2 font-semibold text-white transition-colors hover:bg-suns-orange-soft">
+                        Get started
+                      </button>
+                    </SignUpButton>
+                  </>
+                }
+              >
                 <Link
                   href="/dashboard"
                   className="rounded-full px-4 py-2 font-medium text-white/90 transition-colors hover:text-white"
